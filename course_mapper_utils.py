@@ -6,7 +6,7 @@ import psycopg
 import sys
 
 from collections import defaultdict, namedtuple
-from courses_cache import courses_cache
+from coursescache import courses_cache
 from course_mapper_files import log_file, todo_file
 from psycopg.rows import namedtuple_row
 

@@ -16,7 +16,7 @@ from argparse import ArgumentParser
 from catalogyears import catalog_years
 from collections import namedtuple, defaultdict
 from copy import copy, deepcopy
-from courses_cache import courses_cache
+from coursescache import courses_cache
 from dgw_parser import parse_block
 from psycopg.rows import namedtuple_row, dict_row
 from quarantine_manager import QuarantineManager
@@ -25,7 +25,7 @@ from traceback import extract_stack
 from typing import Any
 
 from course_mapper_files import anomaly_file, blocks_file, fail_file, log_file, no_courses_file, \
-    subplans_file, todo_file, programs_file, requirements_file, mapping_file
+    subplans_file, todo_file, programs_file, requirements_file, mapping_file, label_file
 
 from course_mapper_utils import format_group_description, get_parse_tree, get_restrictions, \
     header_classcredit, header_maxtransfer, header_minres, header_mingpa, header_mingrade, \
@@ -912,6 +912,7 @@ def traverse_body(node: Any, context_list: list) -> None:
       context_dict = get_restrictions(requirement_value)
       try:
         context_dict['requirement_name'] = requirement_value['label']
+        print(f'{institution} {requirement_id} {requirement_value["label"]}', file=label_file)
       except KeyError:
         # Unless a conditional, if there is no label, add a placeholder name, and log the situation
         if requirement_type != 'conditional':
@@ -1210,6 +1211,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
                   case 'block':
                     # -----------------------------------------------------------------------------
                     block_name = value['label']
+                    print(f'{institution} {requirement_id} {value["label"]}', file=label_file)
                     block_num_required = int(value['number'])
                     if block_num_required > 1:
                       print(f'{institution} {requirement_id} Group block: {block_num_required=}',
@@ -1271,6 +1273,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
                     # This is where course lists turn up, in general.
                     try:
                       label_str = value['label']
+                      print(f'{institution} {requirement_id} {value["label"]}', file=label_file)
                       map_courses(institution, requirement_id, block_title,
                                   context_list + requirement_context + group_context +
                                   [{'requirement_name': label_str}], value)
@@ -1323,6 +1326,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
 
           try:
             context_dict['requirement_name'] = requirement_value['label']
+            print(f'{institution} {requirement_id} {requirement_value["label"]}', file=label_file)
           except KeyError:
             context_dict['requirement_name'] = 'No requirement name available'
             print(f'{institution} {requirement_id} Subset with no label', file=fail_file)
@@ -1363,6 +1367,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
                           file=fail_file)
                     continue
                   block_label = rule['label']
+                  print(f'{institution} {requirement_id} {rule["label"]}', file=label_file)
                   required_block_type = rule['block_type']
                   required_block_value = rule['block_value']
                   block_args = [institution, required_block_type, required_block_value]
@@ -1507,6 +1512,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
                     local_dict = get_restrictions(rule_dict)
                     try:
                       local_dict['requirement_name'] = rule_dict['label']
+                      print(f'{institution} {requirement_id} {rule_dict["label"]}', file=label_file)
                     except KeyError as ke:
                       print(f'{institution} {requirement_id} '
                             f'Subset class_credit with no label', file=todo_file)
