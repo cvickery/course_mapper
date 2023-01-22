@@ -40,7 +40,7 @@ map_writer = csv.writer(mapping_file)
 
 generated_date = str(datetime.date.today())
 
-requirement_index = 0
+requirement_key = 0
 
 quarantine_manager = QuarantineManager()
 
@@ -352,7 +352,7 @@ def body_conditional(institution: str, requirement_id: str,
 
 # map_courses()
 # -------------------------------------------------------------------------------------------------
-def map_courses(institution: str, requirement_id: str, requirement_name: str, context_list: list,
+def map_courses(institution: str, requirement_ids: str, requirement_name: str, context_list: list,
                 requirement_dict: dict):
   """ Write courses and their With clauses to the map file.
       Object returned by courses_cache():
@@ -372,9 +372,9 @@ Requirement Key, Course ID, Career, Course, With
 
   """
 
-  # The requirement_index is used to join the requirements and the courses that map to them.
-  global requirement_index
-  requirement_index += 1
+  # The requirement_key is used to join the requirements and the courses that map to them.
+  global requirement_key
+  requirement_key += 1
 
   # Copy the requirement_dict in case a local version has to be constructed
   requirement_info = deepcopy(requirement_dict)
@@ -403,10 +403,11 @@ Requirement Key, Course ID, Career, Course, With
       pass
 
   # Put the course_list into "canonical form"
+  requirement_id = requirement_ids.split(':')[-1]
   canonical_course_list = mogrify_course_list(institution, requirement_id, course_list)
   requirement_info['num_courses'] = len(canonical_course_list)
   for course_info in canonical_course_list:
-    row = [requirement_index,
+    row = [requirement_key,
            course_info.course_id_str,
            course_info.career,
            course_info.course_str,
@@ -416,18 +417,11 @@ Requirement Key, Course ID, Career, Course, With
 
   if requirement_info['num_courses'] == 0:
     print(institution, requirement_id, requirement_name, file=no_courses_file)
-  else:
-    # The requirement_id has to come from the first block_info in the context
-    # list (is this ever actually used? (maybe for debugging/verification)).
-    try:
-      requirement_id = context_list[0]['block_info']['requirement_id']
-    except KeyError as err:
-      exit(f'Missing requirement_id at base of context_list')
 
-    data_row = [institution, requirement_id, requirement_index, requirement_name,
-                json.dumps(context_list + [{'requirement': requirement_info}], ensure_ascii=False),
-                generated_date]
-    requirements_writer.writerow(data_row)
+  data_row = [institution, requirement_ids, requirement_key, requirement_name,
+              json.dumps(context_list + [{'requirement': requirement_info}], ensure_ascii=False),
+              generated_date]
+  requirements_writer.writerow(data_row)
 
 
 # process_block()
@@ -870,8 +864,12 @@ def traverse_body(node: Any, context_list: list) -> None:
     except KeyError:
       pass
   nested_block_values = [block_info['block_value'] for block_info in nested_blocks]
+  nested_block_requirement_ids = [block_info['requirement_id'] for block_info in nested_blocks]
   # Eliminate duplicates while preserving order (does nothing!)
   nested_block_values = list(dict.fromkeys(nested_block_values))
+
+  # The path of requirement_ids to the current block
+  requirement_ids = ':'.join(list(dict.fromkeys(nested_block_requirement_ids)))
 
   # The containing block’s context is the last block_info in the context list
   block_info = nested_blocks[-1]
@@ -880,6 +878,9 @@ def traverse_body(node: Any, context_list: list) -> None:
   block_type = block_info['block_type']
   block_value = block_info['block_value']
   block_title = block_info['block_title']
+
+  if len(nested_blocks) > 2:
+    print(institution, requirement_ids)
 
   # Handle lists
   if isinstance(node, list):
@@ -1048,7 +1049,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
           # This is where course lists turn up, in general.
           try:
             if course_list := requirement_value['course_list']:
-              map_courses(institution, requirement_id, block_title,
+              map_courses(institution, requirement_ids, block_title,
                           context_list + requirement_context, requirement_value)
           except KeyError:
             # Course List is an optional part of ClassCredit
@@ -1134,7 +1135,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
             print(f'{institution} {requirement_id} Body course_list_rule w/o a Course List',
                   file=fail_file)
           else:
-            map_courses(institution, requirement_id, block_title,
+            map_courses(institution, requirement_ids, block_title,
                         context_list + requirement_context, requirement_value)
             print(institution, requirement_id, 'Body course_list_rule', file=log_file)
 
@@ -1274,7 +1275,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
                     try:
                       label_str = value['label']
                       print(f'{institution} {requirement_id} {value["label"]}', file=label_file)
-                      map_courses(institution, requirement_id, block_title,
+                      map_courses(institution, requirement_ids, block_title,
                                   context_list + requirement_context + group_context +
                                   [{'requirement_name': label_str}], value)
                     except KeyError as ke:
@@ -1289,7 +1290,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
                       print(f'{institution} {requirement_id} Group course_list_rule w/o a Course '
                             f'List', file=fail_file)
                     else:
-                      map_courses(institution, requirement_id, block_title,
+                      map_courses(institution, requirement_ids, block_title,
                                   context_list + group_context, value)
                       print(institution, requirement_id, 'Group course_list_rule', file=log_file)
 
@@ -1497,7 +1498,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
                     print(f'{institution} {requirement_id} Subset course_list_rule w/o a '
                           f'course_list', file=fail_file)
                   else:
-                    map_courses(institution, requirement_id, block_title,
+                    map_courses(institution, requirement_ids, block_title,
                                 context_list + requirement_context,
                                 rule)
                     print(f'{institution} {requirement_id} Subset course_list_rule', file=log_file)
@@ -1523,7 +1524,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
                     #   else:
                     #     local_context = []
                     try:
-                      map_courses(institution, requirement_id, block_title,
+                      map_courses(institution, requirement_ids, block_title,
                                   context_list + subset_context + [local_dict],
                                   rule_dict)
                     except KeyError as err:
