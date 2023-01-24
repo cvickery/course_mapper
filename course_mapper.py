@@ -352,7 +352,7 @@ def body_conditional(institution: str, requirement_id: str,
 
 # map_courses()
 # -------------------------------------------------------------------------------------------------
-def map_courses(institution: str, requirement_ids: str, requirement_name: str, context_list: list,
+def map_courses(institution: str, requirement_ids: str, block_title: str, context_list: list,
                 requirement_dict: dict):
   """ Write courses and their With clauses to the map file.
       Object returned by courses_cache():
@@ -386,7 +386,7 @@ Requirement Key, Course ID, Career, Course, With
     # this.
     course_list = requirement_dict
     num_scribed = sum([len(area) for area in course_list['scribed_courses']])
-    requirement_info = {'label': None,
+    requirement_info = {'label': 'Unnamed Requirement',
                         'conjunction': None,
                         'course_list': requirement_dict,
                         'max_classes': num_scribed,
@@ -402,26 +402,44 @@ Requirement Key, Course ID, Career, Course, With
     except KeyError:
       pass
 
+  requirement_id_list = requirement_ids.split(':')
+  requirement_id = requirement_id_list[0]
+  other_requirement_ids = ':'.join(requirement_id_list[1:])
+
   # Put the course_list into "canonical form"
-  requirement_id = requirement_ids.split(':')[-1]
   canonical_course_list = mogrify_course_list(institution, requirement_id, course_list)
   requirement_info['num_courses'] = len(canonical_course_list)
-  for course_info in canonical_course_list:
-    row = [requirement_key,
-           course_info.course_id_str,
-           course_info.career,
-           course_info.course_str,
-           course_info.with_clause,
-           generated_date]
-    map_writer.writerow(row)
-
   if requirement_info['num_courses'] == 0:
-    print(institution, requirement_id, requirement_name, file=no_courses_file)
+    print(institution, requirement_id, file=no_courses_file)
+  else:
+    # Map all the courses for the requirement ...
+    for course_info in canonical_course_list:
+      row = [requirement_key,
+             course_info.course_id_str,
+             course_info.career,
+             course_info.course_str,
+             json.dumps(course_info.with_clause, ensure_ascii=False),
+             generated_date]
+      map_writer.writerow(row)
 
-  data_row = [institution, requirement_ids, requirement_key, requirement_name,
-              json.dumps(context_list + [{'requirement': requirement_info}], ensure_ascii=False),
-              generated_date]
-  requirements_writer.writerow(data_row)
+    # ... and add the requirement to the requirements table
+    requirement_name = requirement_info['label']
+    """ Check requirement name for <COURSETITLE> & <COURSECREDITS> """
+    # Title and credits come from first course listed if there are multiple courses
+    course_info = canonical_course_list[0]
+    if '<COURSETITLE>' in requirement_name.upper():
+      # course_info.course_str is "discipline catalog_number: title" (title might contain colons)
+      _, course_title = course_info.course_str.split(':', 1)
+      course_title = course_title.strip()
+      requirement_name = re.sub(r'<coursetitle>', course_title, requirement_name, flags=re.I)
+    if '<COURSECREDITS>' in requirement_name.upper():
+      requirement_name = re.sub(r'<courscredits>', course_info.credits, requirement_name, flags=re.I)
+
+    data_row = [institution, requirement_id, other_requirement_ids, requirement_key, requirement_name,
+                json.dumps(context_list + [{'requirement': requirement_info}], ensure_ascii=False),
+                generated_date]
+
+    requirements_writer.writerow(data_row)
 
 
 # process_block()
@@ -878,9 +896,6 @@ def traverse_body(node: Any, context_list: list) -> None:
   block_type = block_info['block_type']
   block_value = block_info['block_value']
   block_title = block_info['block_title']
-
-  if len(nested_blocks) > 2:
-    print(institution, requirement_ids)
 
   # Handle lists
   if isinstance(node, list):
@@ -1638,6 +1653,7 @@ if __name__ == "__main__":
 
   requirements_writer.writerow(['Institution',
                                 'Requirement ID',
+                                'Other Requirement IDs',
                                 'Requirement Key',
                                 'Program Name',
                                 'Context',
