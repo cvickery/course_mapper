@@ -431,11 +431,16 @@ Requirement Key, Course ID, Career, Course, With
       # course_info.course_str is "discipline catalog_number: title" (title might contain colons)
       _, course_title = course_info.course_str.split(':', 1)
       course_title = course_title.strip()
-      requirement_name = re.sub(r'<coursetitle>', course_title, requirement_name, flags=re.I)
+      requirement_name = re.sub(r'<coursetitle>', course_title, requirement_name,
+                                flags=re.I)
     if '<COURSECREDITS>' in requirement_name.upper():
-      requirement_name = re.sub(r'<courscredits>', course_info.credits, requirement_name, flags=re.I)
+      requirement_name = re.sub(r'<courscredits>', course_info.credits, requirement_name,
+                                flags=re.I)
 
-    data_row = [institution, requirement_id, other_requirement_ids, requirement_key, requirement_name,
+    context_list[-1]['requirement_name'] = requirement_name
+    requirement_info['label'] = requirement_name
+
+    data_row = [institution, requirement_id, other_requirement_ids, requirement_key, block_title,
                 json.dumps(context_list + [{'requirement': requirement_info}], ensure_ascii=False),
                 generated_date]
 
