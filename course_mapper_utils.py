@@ -19,7 +19,7 @@ number_names = ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', '
 number_ordinals = ['zeroth', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh',
                    'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth']
 
-MogrifiedInfo = namedtuple('MogrifiedInfo', 'course_id_str course_str career with_clause')
+MogrifiedInfo = namedtuple('MogrifiedInfo', 'course_id_str course_str credits career with_clause')
 
 
 # called_from()
@@ -590,6 +590,7 @@ def mogrify_course_list(institution: str, requirement_id: str, course_dict: dict
     mogrified_info = MogrifiedInfo._make([f'{course.course_id:06}:{course.offer_nbr}',
                                           f'{course.discipline} {course.catalog_number}: '
                                           f'{course.course_title}',
+                                          course.credits,
                                           course.career,
                                           with_clause])
     return_list.append(mogrified_info)
