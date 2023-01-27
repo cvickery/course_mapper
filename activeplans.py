@@ -96,18 +96,18 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
             # But count only students in this semester or earlier
             # (If looking during add/drop period, count students who haven't added or dropped yet.)
             recent_enrollment += term_info['distinct_students']
+
       if num_recent_active_terms == 0:
         print(f'{row.institution} {row.requirement_id} Inactive since {first_recent_term}',
               file=inactive_file)
-        continue
-
-      row_dict = row._asdict()
-      del row_dict['term_info']
-      row_dict['first_active_term'] = min_active_term
-      row_dict['last_active_term'] = max_active_term
-      row_dict['num_recent_active_terms'] = num_recent_active_terms
-      row_dict['recent_enrollment'] = recent_enrollment
-      active_blocks[(row.institution, row.requirement_id)] = row_dict
+      else:
+        row_dict = row._asdict()
+        del row_dict['term_info']
+        row_dict['first_active_term'] = min_active_term
+        row_dict['last_active_term'] = max_active_term
+        row_dict['num_recent_active_terms'] = num_recent_active_terms
+        row_dict['recent_enrollment'] = recent_enrollment
+        active_blocks[(row.institution, row.requirement_id)] = row_dict
 
     # Dict of all plans
     cursor.execute("""
@@ -230,7 +230,7 @@ def active_plans():
                                                               block_row.requirement_id)])
                   except KeyError:
                     # Scribe error: a "current" block is not "active" (ignore the block)
-                    print(f'{block_row.institution} {row.plan:>10} Current block is not active',
+                    print(f'{block_row.institution} {row.plan:>10} Current block is not Active',
                           file=error_file)
 
                 # The dict to which the single matching requirement_block will be added, if found
@@ -257,6 +257,7 @@ def active_plans():
                     for index, subplan_block in enumerate(active_subplan_list):
                       if subplan_block['major1'] == plan_dict['plan']:
                         major1_match_list.append(subplan_block)
+
                     match len(major1_match_list):
                       case 0:
                         print(f'{row.institution} {row.plan:>10} Multiple active dap_req_blocks '
@@ -271,7 +272,10 @@ def active_plans():
                         for index, subplan_block in enumerate(major1_match_list):
                           print(f'{row.institution} {row.plan:>10} Multiple active dap_req_blocks '
                                 f'for concentration {subplan_name} with multiple major1 matches '
-                                f'{index+1}/{len(major1_match_list)}: {subplan_block}',
+                                f'{index+1}/{len(major1_match_list)}: '
+                                f'{subplan_block["requirement_id"]} '
+                                f'{subplan_block["block_type"]} {subplan_block["block_value"]} '
+                                f'{subplan_block["block_title"]}',
                                 file=error_file)
 
             case _:
@@ -279,6 +283,7 @@ def active_plans():
                 print(f'{active_block["institution"]} {active_block["requirement_id"]:>10} '
                       f'Multiple active dap_req_blocks for '
                       f'{row.plan} {index+1}/{len(active_block_list)}: '
+                      f'{active_block["requirement_id"]} '
                       f'{active_block["block_type"]} {active_block["block_value"]} '
                       f'{active_block["block_title"]}',
                       file=error_file)
