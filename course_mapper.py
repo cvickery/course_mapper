@@ -31,7 +31,7 @@ from course_mapper_utils import format_group_description, get_parse_tree, get_re
     header_classcredit, header_maxtransfer, header_minres, header_mingpa, header_mingrade, \
     header_maxclass, header_maxcredit, header_maxpassfail, header_maxperdisc, header_minclass, \
     header_mincredit, header_minperdisc, header_proxyadvice, letter_grade, mogrify_context_list, \
-    mogrify_course_list, number_names, number_ordinals
+    mogrify_course_list, mogrify_expression, number_names, number_ordinals
 
 
 programs_writer = csv.writer(programs_file)
@@ -376,6 +376,34 @@ Requirement Key, Course ID, Career, Course, With
   global requirement_key
   requirement_key += 1
 
+  # Break out the program requirement_id from the otherss
+  requirement_id_list = requirement_ids.split(':')
+  requirement_id = requirement_id_list[0]
+  other_requirement_ids = ':'.join(requirement_id_list[1:])
+
+  # Build a string that describes any conditionals that apply to this requirement.
+  conditional_list = []
+  debug_list = []
+  for element in context_list:
+    for key, value in element.items():
+      match key:
+        case 'if' | 'if_true':
+          if condition := mogrify_expression(value):
+            conditional_list.append(condition)
+            debug_list.append({value: conditional_list[-1]})
+        case 'else' | 'if_false':
+          if condition := mogrify_expression(value, de_morgan=True):
+            conditional_list.append(condition)
+            debug_list.append({value: conditional_list[-1]})
+        case _:
+          pass
+  if conditional_list:
+    conditional_str = ' AND '.join(conditional_list)
+    print(conditional_str, file=sys.stderr)
+
+  else:
+   conditional_str = ''
+
   # Copy the requirement_dict in case a local version has to be constructed
   requirement_info = deepcopy(requirement_dict)
   try:
@@ -401,10 +429,6 @@ Requirement Key, Course ID, Career, Course, With
       del course_list['context_path']
     except KeyError:
       pass
-
-  requirement_id_list = requirement_ids.split(':')
-  requirement_id = requirement_id_list[0]
-  other_requirement_ids = ':'.join(requirement_id_list[1:])
 
   # Put the course_list into "canonical form"
   canonical_course_list = mogrify_course_list(institution, requirement_id, course_list)
@@ -440,7 +464,8 @@ Requirement Key, Course ID, Career, Course, With
     context_list[-1]['requirement_name'] = requirement_name
     requirement_info['label'] = requirement_name
 
-    data_row = [institution, requirement_id, other_requirement_ids, requirement_key, block_title,
+    data_row = [institution, requirement_id, other_requirement_ids, conditional_str,
+                requirement_key, block_title,
                 json.dumps(context_list + [{'requirement': requirement_info}], ensure_ascii=False),
                 generated_date]
 
@@ -588,18 +613,21 @@ def process_block(block_info: dict,
   else:
     """ For non-plan blocks, look up the subplan in the plan dict, if possible
     """
-    subplan_list = context_list[0]['block_info']['plan_info']['subplans']
-    found = False
-    for subplan in subplan_list:
-      if subplan['subplan_block_info']['requirement_id'] == requirement_id:
-        subplan['subplan_references'].append(mogrify_context_list(context_list))
-        found = True
-    if not found:
-      others_list = context_list[0]['block_info']['plan_info']['others']
-      others_dict = {'other_block_info': block_info,
-                     'other_block_context': mogrify_context_list(context_list)
-                     }
-      others_list.append(others_dict)
+    # This could be a subplan block that wasn’t referenced from the plan block, in which case it’s
+    # not an “other” block, and doesn't get added to that list.
+    if len(context_list) > 0:
+      subplan_list = context_list[0]['block_info']['plan_info']['subplans']
+      found = False
+      for subplan in subplan_list:
+        if subplan['subplan_block_info']['requirement_id'] == requirement_id:
+          subplan['subplan_references'].append(mogrify_context_list(context_list))
+          found = True
+      if not found:
+          others_list = context_list[0]['block_info']['plan_info']['others']
+          others_dict = {'other_block_info': block_info,
+                         'other_block_context': mogrify_context_list(context_list)
+                         }
+          others_list.append(others_dict)
 
   # Traverse the body of the block. If this is a program block, the subplan and others lists will be
   # updated by any block, blocktype, and copy_rules items encountered during the recursive traversal
@@ -645,15 +673,27 @@ def process_block(block_info: dict,
     # Log information about subplan and others references
     if (num_subplans := len(plan_dict['subplans'])) > 0:
       # Log cases where there are either zero or more than one reference to the subplan
+      unreferenced_subplans = []
       for subplan in block_info_dict['plan_info']['subplans']:
         num_references = len(subplan['subplan_references'])
         subplan_name = subplan['subplan_name']
         if num_references == 0:
+          unreferenced_subplans.append(subplan['subplan_block_info'])
+          # TODO: MAP UN-REFERENCED SUBPLANS
+          """
+          process_block(block_info: dict,
+                  context_list: list = [],
+                  plan_dict: dict = None)
+          """
           print(f'{institution} {requirement_id} Subplan {subplan_name} not referenced',
                 file=subplans_file)
         if num_references > 1:
           print(f'{institution} {requirement_id} Subplan {subplan_name} referenced '
                 f'{num_references} times', file=subplans_file)
+
+      # Now process any un-referenced subplans
+      for subplan_block_info in unreferenced_subplans:
+        process_block(subplan_block_info, [])  # No context in this case
 
     if (num_others := len(block_info_dict['plan_info']['others'])) > 0:
       s = '' if num_others == 1 else 's'
@@ -1659,6 +1699,7 @@ if __name__ == "__main__":
   requirements_writer.writerow(['Institution',
                                 'Requirement ID',
                                 'Other Requirement IDs',
+                                'Conditions',
                                 'Requirement Key',
                                 'Program Name',
                                 'Context',

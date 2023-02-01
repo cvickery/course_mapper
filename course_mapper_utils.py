@@ -3,6 +3,7 @@
 """
 
 import psycopg
+import re
 import sys
 
 from collections import defaultdict, namedtuple
@@ -595,3 +596,57 @@ def mogrify_course_list(institution: str, requirement_id: str, course_dict: dict
                                           with_clause])
     return_list.append(mogrified_info)
   return return_list
+
+
+# mogrify_expression()
+# -------------------------------------------------------------------------------------------------
+def mogrify_expression(expression: str, de_morgan: bool = False) -> str:
+  """ If the expression specifies a set of major or concentration conditions, return an
+      English sentence describing those conditions. Otherwise, return the empty string.
+
+      The three logical operators (and, or, not) and parens have to be handled.
+      The only relational operators that will occur are = and <>
+
+      If de_morgan, invert the logic by de Morgan's theorem. (Used in an 'else' context)
+  """
+
+  sentence = ''
+
+  # Is there anything to do?
+  if re.search('major |conc ', expression, flags=re.I):
+    # Replace logical and relational operators with 1-character symbols.
+    # relop = is already one char; <> is awkward: I chose to use ^
+    working_expression = (expression.strip()
+                                    .replace(' AND ', ' & ')
+                                    .replace(' OR ', ' | ')
+                                    .replace(' NOT ', ' ! ')
+                                    .replace(' <> ', ' ^ '))
+    tokens = working_expression.split()
+    for token in tokens:
+      match token:
+        case 'MAJOR':
+          sentence += 'Major '
+        case 'MINOR':
+          sentence += 'Minor '
+        case 'CONC':
+          sentence += 'Concentration '
+        case '&':
+          sentence += 'or ' if de_morgan else 'and '
+        case '|':
+          sentence += 'and ' if de_morgan else 'or '
+        case '!':
+          # NOT is not expected here
+          sentence += '-not- '
+        case '=':
+          sentence += 'is not ' if de_morgan else 'is '
+        case '^':
+          sentence += 'is ' if de_morgan else'is not '
+        case _:
+          sentence += f'{token} '
+
+  return sentence.strip()
+
+
+if __name__ == '__main__':
+  while expression := input('expression? '):
+    mogrify_expression(expression)
