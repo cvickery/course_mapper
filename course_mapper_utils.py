@@ -263,7 +263,7 @@ def header_minres(institution: str, requirement_id: str, value: dict) -> dict:
     case [None, credits]:
       minres_str = f'{float(credits):.1f} credits'
     case _:
-      print(f'Invalid minres {value}', file=sys.stderr)
+      exit(f'{institution} {requirement_id} Invalid minres {value}')
 
   label_str = value['label']
 
