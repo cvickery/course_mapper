@@ -62,6 +62,7 @@ if __name__ == '__main__':
         institution           text,
         requirement_id        text,
         other_requirement_ids text,
+        conditions            text,
         requirement_key       integer,
         program_name          text,
         context               jsonb,
@@ -99,7 +100,7 @@ if __name__ == '__main__':
                                .replace('.csv', ''))
         if args.progress:
           print()
-        print(f'{table_name}: {num_lines:,} lines')
+        print(f'{table_name:>12}: {num_lines:7,} lines')
         tables[table_name] = num_lines - 1
         nl = num_lines / 100.0
         with open(file) as csv_file:
@@ -125,9 +126,9 @@ if __name__ == '__main__':
 
   min, sec = divmod(time() - session_start, 60)
   hr, min = divmod(min, 60)
-  csi = '\033['
-  bold = f'{csi}1m{csi}38;2;255;0;255m'
-  norm = f'{csi}38;0m'
-  print(f'\nTotal {int(hr):02}:{int(min):02}:{round(sec):02}\n\n')
+  # csi = '\033['
+  # bold = f'{csi}1m{csi}38;2;255;0;255m'
+  # norm = f'{csi}38;0m'
   for key, value in tables.items():
-    print(f'{value:10,} {key}')
+    print(f'{key:>12}: {value:7,} rows')
+  print(f'   That took: {int(hr):02}:{int(min):02}:{round(sec):02}')
