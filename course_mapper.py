@@ -24,8 +24,9 @@ from recordclass import recordclass
 from traceback import extract_stack
 from typing import Any
 
-from course_mapper_files import anomaly_file, blocks_file, fail_file, log_file, no_courses_file, \
-    subplans_file, todo_file, programs_file, requirements_file, mapping_file, label_file
+from course_mapper_files import anomaly_file, blocks_file, conditions_file, fail_file, log_file, \
+    no_courses_file, subplans_file, todo_file, programs_file, requirements_file, mapping_file, \
+    label_file
 
 from course_mapper_utils import format_group_description, get_parse_tree, get_restrictions, \
     header_classcredit, header_maxtransfer, header_minres, header_mingpa, header_mingrade, \
@@ -398,8 +399,8 @@ Requirement Key, Course ID, Career, Course, With
         case _:
           pass
   if conditional_list:
-    conditional_str = ' AND '.join(conditional_list)
-    print(conditional_str, file=sys.stderr)
+    conditional_str = ' && '.join(conditional_list)
+    print(institution, requirement_id, conditional_str, file=conditions_file)
 
   else:
    conditional_str = ''
@@ -678,13 +679,8 @@ def process_block(block_info: dict,
         num_references = len(subplan['subplan_references'])
         subplan_name = subplan['subplan_name']
         if num_references == 0:
+          # Log un-referenced subplan blocks
           unreferenced_subplans.append(subplan['subplan_block_info'])
-          # TODO: MAP UN-REFERENCED SUBPLANS
-          """
-          process_block(block_info: dict,
-                  context_list: list = [],
-                  plan_dict: dict = None)
-          """
           print(f'{institution} {requirement_id} Subplan {subplan_name} not referenced',
                 file=subplans_file)
         if num_references > 1:

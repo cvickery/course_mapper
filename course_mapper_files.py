@@ -16,6 +16,7 @@
 """
 anomaly_file = open('/Users/vickery/Projects/course_mapper/reports/anomalies.txt', 'w')
 blocks_file = open('/Users/vickery/Projects/course_mapper/reports/blocks.txt', 'w')
+conditions_file = open('/Users/vickery/Projects/course_mapper/reports/conditions.txt', 'w')
 fail_file = open('/Users/vickery/Projects/course_mapper/reports/fail.txt', 'w')
 label_file = open('/Users/vickery/Projects/course_mapper/reports/labels.txt', 'w')
 log_file = open('/Users/vickery/Projects/course_mapper/reports/log.txt', 'w')

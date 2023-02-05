@@ -616,33 +616,37 @@ def mogrify_expression(expression: str, de_morgan: bool = False) -> str:
   if re.search('major |conc ', expression, flags=re.I):
     # Replace logical and relational operators with 1-character symbols.
     # relop = is already one char; <> is awkward: I chose to use ^
-    working_expression = (expression.strip()
-                                    .replace(' AND ', ' & ')
-                                    .replace(' OR ', ' | ')
-                                    .replace(' NOT ', ' ! ')
-                                    .replace(' <> ', ' ^ '))
+    working_expression = expression.strip()
+    working_expression = re.sub(' AND ', ' & ', working_expression, flags=re.I)
+    working_expression = re.sub(' OR ', ' | ', working_expression, flags=re.I)
+    working_expression = re.sub(' NOT ', ' ! ', working_expression, flags=re.I)
+    working_expression = re.sub(' <> ', ' ^ ', working_expression, flags=re.I)
+
     tokens = working_expression.split()
     for token in tokens:
       match token:
         case 'MAJOR':
-          sentence += 'Major '
+          sentence += 'MAJ'
         case 'MINOR':
-          sentence += 'Minor '
+          sentence += 'MIN'
         case 'CONC':
-          sentence += 'Concentration '
+          sentence += 'CON'
         case '&':
-          sentence += 'or ' if de_morgan else 'and '
+          sentence += ' || ' if de_morgan else ' && '
         case '|':
-          sentence += 'and ' if de_morgan else 'or '
+          sentence += ' && ' if de_morgan else ' || '
         case '!':
           # NOT is not expected here
+          exit('Unexpected NOT in mogrify_expression()')
           sentence += '-not- '
         case '=':
-          sentence += 'is not ' if de_morgan else 'is '
+          sentence += ' != ' if de_morgan else ' == '
         case '^':
-          sentence += 'is ' if de_morgan else'is not '
+          sentence += ' == ' if de_morgan else' != '
+        case '(' | ')':
+          sentence += token
         case _:
-          sentence += f'{token} '
+          sentence += f'{token}'
 
   return sentence.strip()
 
