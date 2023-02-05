@@ -5,3 +5,5 @@
 /backups_from_dgw_processor/
 /extracts/
 /spell_check/
+/.aliases
+/.longest.awk
