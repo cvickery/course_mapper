@@ -7,11 +7,20 @@ if [[ ${REPLY[0]} =~ ^[Yy] ]]
 then
   reports_dir='/Users/vickery/Projects/course_mapper/reports'
   spellcheck_dir='/Users/vickery/Projects/course_mapper/spell_check'
+  rm -f $spellcheck_dir/*
   sort $reports_dir/labels.txt|uniq > $spellcheck_dir/labels
-  cp $spellcheck_dir/labels $spellcheck_dir/labels_orig
+  (
+    cd $spellcheck_dir
+    awk '{print $0 >> $1}' labels
+    rm labels
+    for file in *01
+    do mv ${file} ${file/01/}
+    done
+    ls
+  )
 
   echo Next:
-  echo "  aspell -c ${spellcheck_dir}/labels"
+  echo "  aspell -c ${spellcheck_dir}/[college]"
   echo Then:
   echo "  diff ${spellcheck_dir}/*"
 

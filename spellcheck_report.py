@@ -7,4 +7,33 @@
 import csv
 import sys
 
-from pathlib import Path
+spellcheck_dir = '/Users/vickery/Projects/course_mapper/spell_check/'
+for college in sys.argv[1:]:
+  college = college.upper()
+
+  try:
+    edited_file = open(f'{spellcheck_dir}{college}', 'r')
+    original_file = open(f'{spellcheck_dir}{college}.bak', 'r')
+  except FileNotFoundError as err:
+    msg = str(err)
+    print(msg[msg.rindex('/') + 1:], f'not found: ignoring {college}')
+    continue
+
+  with open(f'{spellcheck_dir}{college}.csv', 'w') as csv_file:
+    writer = csv.writer(csv_file)
+    writer.writerow(['College', 'Requirement ID', 'Original', 'Suggestion'])
+    num_rows = 0
+    num_corrections = 0
+    for original, checked in zip(original_file.readlines(), edited_file.readlines()):
+      num_rows += 1
+      institution, requirement_id, original_label = original.split(maxsplit=2)
+      original_label = original_label.strip()
+      _, _, checked_label = checked.split(maxsplit=2)
+      checked_label = checked_label.strip()
+      if checked_label == original_label:
+        checked_label = ''
+      else:
+        num_corrections += 1
+      writer.writerow([institution, requirement_id, original_label, checked_label])
+
+  print(f'{college}: {num_rows:,} labels; {num_corrections:,} suggestions')

@@ -31,7 +31,7 @@ if __name__ == '__main__':
   session_start = time()
   csv.field_size_limit(sys.maxsize)
 
-  schema_name = 'course_mappings'
+  schema_name = 'course_mapper'
   with psycopg.connect('dbname=cuny_curriculum') as conn:
     with conn.cursor(row_factory=namedtuple_row) as cursor:
       cursor.execute(f'create schema if not exists {schema_name}')
