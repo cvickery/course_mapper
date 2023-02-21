@@ -678,14 +678,16 @@ def process_block(block_info: dict,
       for subplan in block_info_dict['plan_info']['subplans']:
         num_references = len(subplan['subplan_references'])
         subplan_name = subplan['subplan_name']
+        subplan_enrollment = subplan['subplan_enrollment']
         if num_references == 0:
           # Log un-referenced subplan blocks
           unreferenced_subplans.append(subplan['subplan_block_info'])
-          print(f'{institution} {requirement_id} Subplan {subplan_name} not referenced',
+          print(f'{institution} {requirement_id} Subplan {subplan_name} not referenced; '
+                f'{subplan_enrollment:,} enrolled',
                 file=subplans_file)
         if num_references > 1:
           print(f'{institution} {requirement_id} Subplan {subplan_name} referenced '
-                f'{num_references} times', file=subplans_file)
+                f'{num_references} times; {subplan_enrollment:,} enrolled', file=subplans_file)
 
       # Now process any un-referenced subplans
       for subplan_block_info in unreferenced_subplans:
@@ -1023,18 +1025,7 @@ def traverse_body(node: Any, context_list: list) -> None:
                     for row in cursor:
                       if row['major1'] in nested_block_values:
                         matching_rows.append(row)
-                        """
-                        print(nested_block_values.index(row['major1']),
-                              f'of {len(nested_block_values)} {nested_block_values}',
-                              file=sys.stderr)
-1 of 2 ['CET-BA', 'RUS-BA']
-1 of 2 ['ECETSE-BA', 'RUS-BA']
-1 of 2 ['ECHE-BA', 'RUS-BA']
 
-BKL01 RA002573 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = CET-BA matches
-BKL01 RA000523 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 2 major1 = ECETSE-BA matches
-BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-BA matches
-                        """
                     if len(matching_rows) == 1:
                       target_block = matching_rows[0]
                     else:
@@ -1047,7 +1038,8 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
 
                   if target_block is not None:
                     process_block(target_block, context_list + requirement_context)
-                    print(f'{institution} {requirement_id} Body block {target_block["block_type"]}',
+                    print(f'{institution} {requirement_id} Body block {target_block["block_type"]}'
+                          f' from {block_type}',
                           file=log_file)
 
         case 'blocktype':
@@ -1064,7 +1056,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
           try:
             active_subplans = block_info['plan_info']['subplans']
           except KeyError as err:
-            print(f'{institution} {requirement_id} Body blocktype: from non-plan block',
+            print(f'{institution} {requirement_id} Body blocktype: from {block_type} block',
                   file=fail_file)
             preconditions = False
 
@@ -1467,7 +1459,7 @@ BKL01 RA002902 Body block: 2 active ['CONC', 'RUSSIAN'] blocks; 0 major1 = ECHE-
                       if target_block is not None:
                         process_block(target_block, context_list + requirement_context)
                         print(f'{institution} {requirement_id} Subset block '
-                              f'{target_block["block_type"]}', file=log_file)
+                              f'{target_block["block_type"]} from {block_type}', file=log_file)
 
                 case 'blocktype':
                   # -------------------------------------------------------------------------------
