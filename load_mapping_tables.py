@@ -124,11 +124,7 @@ if __name__ == '__main__':
               if cursor.rowcount == 0:
                 print(f'{table_name} {values}', file=sys.stderr)
 
-  min, sec = divmod(time() - session_start, 60)
-  hr, min = divmod(min, 60)
-  # csi = '\033['
-  # bold = f'{csi}1m{csi}38;2;255;0;255m'
-  # norm = f'{csi}38;0m'
   for key, value in tables.items():
     print(f'{key:>12}: {value:7,} rows')
-  print(f'   That took: {int(hr):02}:{int(min):02}:{round(sec):02}')
+
+  print(round(time() - session_start), 'seconds')
