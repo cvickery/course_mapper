@@ -34,9 +34,6 @@ done
   echo -e "\n`wc -l anomalies.txt|awk '{print $1}'` ACAD PLANS w/ WRONG BLOCK TYPES" >> reports.txt
   cat anomalies.txt >> reports.txt
 
-  echo -e "\n`wc -l activeplans_missing.txt|awk '{print $1}'` MISSING SCRIBE BLOCKS" >> reports.txt
-  cat activeplans_missing.txt >> reports.txt
-
   for r in log todo fail no_courses
   do
     n=`wc -l ${r}.txt|cut -d ' ' -f 1`
@@ -66,4 +63,8 @@ done
   echo ' -------------------------------------------------------------------------------' \
        >> reports.txt
   ack 'Other' subplans.txt |cut -c 16- | sort|uniq -c| sort -r >> reports.txt
+
+  echo -e "\n`wc -l activeplans_missing.txt|awk '{print $1}'` MISSING SCRIBE BLOCKS" >> reports.txt
+  cat activeplans_missing.txt >> reports.txt
 )
+
