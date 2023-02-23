@@ -408,8 +408,7 @@ def header_minperdisc(institution: str, requirement_id: str, value: dict) -> dic
 # header_proxyadvice()
 # -------------------------------------------------------------------------------------------------
 def header_proxyadvice(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Defer processing of proxy advice."""
   print(f'{institution} {requirement_id} header_proxyadvice', file=todo_file)
   return notyet_dict
 
@@ -417,18 +416,16 @@ def header_proxyadvice(institution: str, requirement_id: str, value: dict) -> di
 # mogrify_context_list()
 # -------------------------------------------------------------------------------------------------
 def mogrify_context_list(context_list: list) -> list:
-  """
-      Given a context list, extract a list of strings that summarizes the info from each dict in the
-      list
-  """
+  """Extract a list of strings that summarizes the info from each dict in the context_list."""
   return_list = []
   for element in context_list:
     for key, value in element.items():
       match key:
 
         case 'block_info':
+          # Stringify key info about the block
           return_list.append(f'{value["requirement_id"]} {value["block_type"]} '
-                             f'{value["block_value"]}')
+                             f'{value["block_value"]} {value["block_title"]}')
 
         case 'if_true':
           return_list.append(f'TRUE: {value}')
@@ -443,6 +440,8 @@ def mogrify_context_list(context_list: list) -> list:
           pass
 
         case _:
+          print('Unhandled key in mogrify_context_list:', key, file=sys.stderr)
+          print(f'\n{context_list}\n', file=sys.stderr)
           exit(element)
 
   return return_list
@@ -451,7 +450,8 @@ def mogrify_context_list(context_list: list) -> list:
 # mogrify_course_list()
 # -------------------------------------------------------------------------------------------------
 def mogrify_course_list(institution: str, requirement_id: str, course_dict: dict) -> list:
-  """
+  """Mogrify course_dict for use in the programs table.
+
       This gets called from traverse_header (max_classes, max_credits), and map_courses (via various
       body rules) to turn a scribed course_list into information needed for populating the programs
       table (header info) or mapping table (body rules).
@@ -598,10 +598,42 @@ def mogrify_course_list(institution: str, requirement_id: str, course_dict: dict
   return return_list
 
 
+# context_conditions()
+# -------------------------------------------------------------------------------------------------
+def context_conditions(context_list: list) -> str:
+  """Build conditional expression from any/all conditions in a context list.
+
+  Heuristic: this function is used to generate the conditional column of the requirements table and
+  when processing blocktype block references. CON == token means the expression is true for that
+  concentration.
+  """
+  conditional_list = []
+  debug_list = []
+  for element in context_list:
+    for key, value in element.items():
+      match key:
+        case 'if' | 'if_true':
+          if condition := mogrify_expression(value):
+            conditional_list.append(condition)
+            debug_list.append({value: conditional_list[-1]})
+        case 'else' | 'if_false':
+          if condition := mogrify_expression(value, de_morgan=True):
+            conditional_list.append(condition)
+            debug_list.append({value: conditional_list[-1]})
+        case _:
+          pass
+  if conditional_list:
+    conditions_str = ' && '.join(conditional_list)
+  else:
+   conditions_str = ''
+
+  return conditions_str
+
+
 # mogrify_expression()
 # -------------------------------------------------------------------------------------------------
 def mogrify_expression(expression: str, de_morgan: bool = False) -> str:
-  """ If the expression specifies a set of major or concentration conditions, return an
+  """If the expression specifies a set of major or concentration conditions, return an
       English sentence describing those conditions. Otherwise, return the empty string.
 
       The three logical operators (and, or, not) and parens have to be handled.

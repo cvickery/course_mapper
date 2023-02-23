@@ -1,6 +1,5 @@
 #! /usr/local/bin/python3
-""" List program requirements and courses that satisfy them.
-"""
+"""List program requirements and courses that satisfy them."""
 
 import csv
 import datetime
@@ -32,7 +31,7 @@ from course_mapper_utils import format_group_description, get_parse_tree, get_re
     header_classcredit, header_maxtransfer, header_minres, header_mingpa, header_mingrade, \
     header_maxclass, header_maxcredit, header_maxpassfail, header_maxperdisc, header_minclass, \
     header_mincredit, header_minperdisc, header_proxyadvice, letter_grade, mogrify_context_list, \
-    mogrify_course_list, mogrify_expression, number_names, number_ordinals
+    mogrify_course_list, mogrify_expression, number_names, number_ordinals, context_conditions
 
 
 programs_writer = csv.writer(programs_file)
@@ -57,11 +56,7 @@ Reference = namedtuple('Reference', 'name lineno')
 # -------------------------------------------------------------------------------------------------
 def header_conditional(institution: str, requirement_id: str,
                        return_dict: dict, conditional_dict: dict):
-  """
-      Update the return_dict with conditional info determined by traversing the conditional_dict
-      recursively.
-  """
-
+  """Update return_dict with conditions found by traversing the conditional_dict recursively."""
   # The header columns that might be updated:
   column_lists = ['total_credits_list', 'maxtransfer_list',
                   'minres_list', 'mingrade_list', 'mingpa_list']
@@ -79,8 +74,7 @@ def header_conditional(institution: str, requirement_id: str,
   false_leg = False
 
   def tag(which_list, which_leg=true_leg):
-    """ Manage the first is_true and, possibly, is_false for each list.
-    """
+    """Manage the first is_true and, possibly, is_false for each list."""
     if args.concise_conditionals:
       which_dict = {'if': condition_str} if which_leg else {'else': ''}
     else:
@@ -355,24 +349,24 @@ def body_conditional(institution: str, requirement_id: str,
 # -------------------------------------------------------------------------------------------------
 def map_courses(institution: str, requirement_ids: str, block_title: str, context_list: list,
                 requirement_dict: dict):
-  """ Write courses and their With clauses to the map file.
-      Object returned by courses_cache():
-        CourseTuple = namedtuple('CourseTuple', 'course_id offer_nbr title credits career')
+  """Write courses and their With clauses to the map file.
 
-      Each program requirement has a unique key based on institution, requirement_id, block_title,
-      and context list.
+  Object returned by courses_cache():
+    CourseTuple = namedtuple('CourseTuple', 'course_id offer_nbr title credits career')
 
-Programs: Handled by process_block()
-Institution, Requirement ID, Type, Code, Total, Max Transfer, Min Residency, Min Grade, Min GPA
+  Each program requirement has a unique key based on institution, requirement_id, block_title,
+  and context list.
 
-Requirements: Handled here
-Institution, Requirement ID, Requirement Key, Name, Context, Grade Restriction, Transfer Restriction
+  Programs: Handled by process_block()
+  Institution, Requirement ID, Type, Code, Total, Max Transfer, Min Residency, Min Grade, Min GPA
 
-Course Mappings: Handled here
-Requirement Key, Course ID, Career, Course, With
+  Requirements: Handled here
+    Institution, Requirement ID, Requirement Key, Name, Context, Grade Restriction, Transfer
+    Restriction
 
+  Course Mappings: Handled here
+    Requirement Key, Course ID, Career, Course, With
   """
-
   # The requirement_key is used to join the requirements and the courses that map to them.
   global requirement_key
   requirement_key += 1
@@ -382,28 +376,31 @@ Requirement Key, Course ID, Career, Course, With
   requirement_id = requirement_id_list[0]
   other_requirement_ids = ':'.join(requirement_id_list[1:])
 
-  # Build a string that describes any conditionals that apply to this requirement.
-  conditional_list = []
-  debug_list = []
-  for element in context_list:
-    for key, value in element.items():
-      match key:
-        case 'if' | 'if_true':
-          if condition := mogrify_expression(value):
-            conditional_list.append(condition)
-            debug_list.append({value: conditional_list[-1]})
-        case 'else' | 'if_false':
-          if condition := mogrify_expression(value, de_morgan=True):
-            conditional_list.append(condition)
-            debug_list.append({value: conditional_list[-1]})
-        case _:
-          pass
-  if conditional_list:
-    conditional_str = ' && '.join(conditional_list)
-    print(institution, requirement_id, conditional_str, file=conditions_file)
+  # # Build a string that describes any conditionals that apply to this requirement.
+  # conditional_list = []
+  # debug_list = []
+  # for element in context_list:
+  #   for key, value in element.items():
+  #     match key:
+  #       case 'if' | 'if_true':
+  #         if condition := mogrify_expression(value):
+  #           conditional_list.append(condition)
+  #           debug_list.append({value: conditional_list[-1]})
+  #       case 'else' | 'if_false':
+  #         if condition := mogrify_expression(value, de_morgan=True):
+  #           conditional_list.append(condition)
+  #           debug_list.append({value: conditional_list[-1]})
+  #       case _:
+  #         pass
+  # if conditional_list:
+  #   conditional_str = ' && '.join(conditional_list)
+  #   print(institution, requirement_id, conditional_str, file=conditions_file)
 
-  else:
-   conditional_str = ''
+  # else:
+  #  conditional_str = ''
+  conditions_str = context_conditions(context_list)
+  if conditions_str:
+    print(institution, requirement_id, conditions_str, file=conditions_file)
 
   # Copy the requirement_dict in case a local version has to be constructed
   requirement_info = deepcopy(requirement_dict)
@@ -465,7 +462,7 @@ Requirement Key, Course ID, Career, Course, With
     context_list[-1]['requirement_name'] = requirement_name
     requirement_info['label'] = requirement_name
 
-    data_row = [institution, requirement_id, other_requirement_ids, conditional_str,
+    data_row = [institution, requirement_id, other_requirement_ids, conditions_str,
                 requirement_key, block_title,
                 json.dumps(context_list + [{'requirement': requirement_info}], ensure_ascii=False),
                 generated_date]
@@ -478,24 +475,25 @@ Requirement Key, Course ID, Career, Course, With
 def process_block(block_info: dict,
                   context_list: list = [],
                   plan_dict: dict = None):
-  """ Process a dap_req_block.
-      The block will be:
-        - An academic plan (major or minor)
-        - A subplan (concentration)
-        - A nested (“other”) requirement referenced from a plan or subplan.
+  """Process a dap_req_block.
 
-      Plans are special: they are the top level of a program, and get entered into the programs
-      table. The context list for requirements get initialized here with information about the
-      program, including header-level requirements/restrictions, and a list of active subplans
-      associated with the plan. When the plan's parse tree is processed, any block referenced by
-      a block, block_type, or copy_rules clause will be checked and, if it is of type CONC, verified
-      against the plan's list of active subplans, and its context is added to the list of
-      references for the subplan. If a block is neither a plan nor a subplan, its context is added
-      to the list of “others” references for the plan.
+  The block will be for:
+    - An academic plan (major or minor)
+    - A subplan (concentration)
+    - A nested (“other”) requirement referenced from a plan or subplan.
 
-      Orphans are subplans (concentrations) that are never referenced by its plan’s requirements.
+    Plans are special: they are the top level of a program, and get entered into the programs
+    table. The context list for requirements get initialized here with information about the
+    program, including header-level requirements/restrictions, and a list of active subplans
+    associated with the plan. When the plan's parse tree is processed, any block referenced by
+    a block, block_type, or copy_rules clause will be checked and, if it is of type CONC, verified
+    against the plan's list of active subplans, and its context is added to the list of
+    references for the subplan. If a block is neither a plan nor a subplan, its context is added
+    to the list of “others” references for the plan.
+
+    Orphans are subplans (concentrations) that are never referenced by its plan’s requirements. Once
+    the plan block has been processed, any orphans are processed.
   """
-
   institution = block_info['institution']
   requirement_id = block_info['requirement_id']
   dap_req_block_key = (institution, requirement_id)
@@ -601,7 +599,8 @@ def process_block(block_info: dict,
                       'subplan_cip_code': subplan['cip_code'],
                       'subplan_active_terms': subplan_block_info['num_recent_active_terms'],
                       'subplan_enrollment': subplan_block_info['recent_enrollment'],
-                      'subplan_references': []
+                      'subplan_references': [],
+                      'subplan_others': []
                       }
       plan_info_dict['subplans'].append(subplan_dict)
 
@@ -612,25 +611,52 @@ def process_block(block_info: dict,
     header_dict['other']['plan_info'] = plan_info_dict
 
   else:
-    """ For non-plan blocks, look up the subplan in the plan dict, if possible
-    """
-    # This could be a subplan block that wasn’t referenced from the plan block, in which case it’s
-    # not an “other” block, and doesn't get added to that list.
-    if len(context_list) > 0:
-      subplan_list = context_list[0]['block_info']['plan_info']['subplans']
-      found = False
-      for subplan in subplan_list:
-        if subplan['subplan_block_info']['requirement_id'] == requirement_id:
-          subplan['subplan_references'].append(mogrify_context_list(context_list))
-          found = True
-      if not found:
-          others_list = context_list[0]['block_info']['plan_info']['others']
-          others_dict = {'other_block_info': block_info,
-                         'other_block_context': mogrify_context_list(context_list)
-                         }
-          others_list.append(others_dict)
+    # For non-plan blocks, look up the subplan in the plan dict, if possible
 
-  # Traverse the body of the block. If this is a program block, the subplan and others lists will be
+    # This could be a subplan block that wasn’t referenced from the plan block, in which case update
+    # update the plan block’s subplans list
+
+    # Get all context strings
+    mogrified_context_strings = mogrify_context_list(context_list)
+
+    # What is the enclosing context for this block?
+    enclosing_block_info = None
+    for mogrified_string in mogrified_context_strings[::-1]:
+      if mogrified_string.startswith('RA'):
+        encl_requirement_id, encl_type, encl_value, encl_title = mogrified_string.split(maxsplit=3)
+        enclosing_block_info = {'institution': institution,
+                                'requirement_id': encl_requirement_id,
+                                'block_type': encl_type,
+                                'block_value': encl_value,
+                                'block_title': encl_title,
+                                'catalog_years': 'Whatever'}  # To be seen only during testing
+        break
+
+    # Are there any true conditions for the plan’s concentrations?
+    concentration_names = []
+    for context_str in mogrified_context_strings:
+      if match := re.search(r'TRUE.*CONC = (\S+)\s*\)', context_str):
+        concentration_names.append(match[1])
+
+    # Is this block one of the plan’s subplans?
+    subplan_list = context_list[0]['block_info']['plan_info']['subplans']
+    found = False
+    for subplan in subplan_list:
+      if (subplan['subplan_block_info']['requirement_id'] == requirement_id) and \
+         (subplan['subplan_name'] in concentration_names):
+        subplan['subplan_references'].append(mogrified_context_strings)
+        found = True
+
+    if not found:
+      # Not a subplan of the plan: add its enclosing context to the others list for the plan or for
+      # the matching subplan(s)
+      others_list = context_list[0]['block_info']['plan_info']['others']
+      others_dict = {'other_block_info': enclosing_block_info,
+                     'other_block_context': mogrified_context_strings
+                     }
+      others_list.append(others_dict)
+
+  # Traverse the body of the block. If this is a plan block, the subplan and others lists will be
   # updated by any block, blocktype, and copy_rules items encountered during the recursive traversal
   # process.
   try:
@@ -691,7 +717,7 @@ def process_block(block_info: dict,
 
       # Now process any un-referenced subplans
       for subplan_block_info in unreferenced_subplans:
-        process_block(subplan_block_info, [])  # No context in this case
+        process_block(subplan_block_info, [{'block_info': block_info_dict}])
 
     if (num_others := len(block_info_dict['plan_info']['others'])) > 0:
       s = '' if num_others == 1 else 's'
@@ -702,10 +728,10 @@ def process_block(block_info: dict,
 # traverse_header()
 # =================================================================================================
 def traverse_header(institution: str, requirement_id: str, parse_tree: dict) -> dict:
-  """ Extract program-wide qualifiers, and update block_info with the values found. Handles only
-      fields deemed relevant to transfer.
-  """
+  """Extract program-wide qualifiers, and update block_info with the values found.
 
+  Handles only fields deemed relevant to transfer.
+  """
   return_dict = dict()
   # Lists of limits that might or might not be specified in the header. Each is a list of dicts
 
@@ -1074,6 +1100,13 @@ def traverse_body(node: Any, context_list: list) -> None:
 
           if preconditions:
 
+            # Does the context tell which concentration to process?
+            condition_str = context_conditions(context_list)
+            eligible_concentrations = re.findall(r'CON == (\S+)', condition_str)
+            if len(eligible_concentrations) > 1:
+              print(f'{institution} {requirement_id} Body blocktype with multiple conditions',
+                    file=log_file)
+
             # Log cases where multiple blocks are required
             num_required = int(requirement_value['number'])
             if num_required > 1:
@@ -1085,8 +1118,10 @@ def traverse_body(node: Any, context_list: list) -> None:
             num_subplans_str = f'{num_subplans} subplan{s}'
 
             for active_subplan in active_subplans:
-              process_block(active_subplan['subplan_block_info'],
-                            context_list + requirement_context)
+              if not eligible_concentrations or \
+                 active_subplan['subplan_name'] in eligible_concentrations:
+                process_block(active_subplan['subplan_block_info'],
+                              context_list + requirement_context)
 
             print(f'{institution} {requirement_id} Block blocktype: {num_subplans_str}',
                   file=log_file)
