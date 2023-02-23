@@ -33,9 +33,12 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
     for row in cursor:
       institutions[row.code] = row.name
 
-def format_program(institution: str, program_code: str, show_courses:bool) -> str:
-  """ Return Markdown-encoded description of a program’s (or subprogam’s) requirements.
-  """
+
+def format_program(institution: str,
+                   program_code: str,
+                   subplan_code: str,
+                   show_courses: bool) -> str:
+  """Return Markdown-encoded description of a program’s (or subprogam’s) requirements."""
   with psycopg.connect('dbname=cuny_curriculum') as conn:
     with conn.cursor(row_factory=namedtuple_row) as cursor:
       cursor.execute("""
@@ -53,10 +56,20 @@ def format_program(institution: str, program_code: str, show_courses:bool) -> st
   return markdown_str
 
 
+def do_program(institution: str, program_code: str, show_courses: bool) -> str:
+  """Determine the subplan argument for the plan, and invoke format_program().
+
+  This is a helper function for command-line testing.
+  """
+
+  #
+  subplan_code = None
+
+
 if __name__ == '__main__':
   conn = psycopg.connect('dbname=cuny_curriculum')
   cursor = conn.cursor(row_factory=namedtuple_row)
-  html_file = open('./temp.html', 'w')
+  html_dir = Path('./html')
   institution = None
   program_code = None
   requirement_id = None
@@ -114,10 +127,13 @@ if __name__ == '__main__':
               exit()
             row = cursor.fetchone()
             if row.block_value == row.code and row.block_type.startswith(row.type.upper()):
+              block_type = row.block_type
               program_code = row.block_value
-              markdown_text = format_program(institution, program_code, show_courses)
-              print(markdown_text)
-              print(markdown(markdown_text), file=html_file)
+              if block_type not in ['MAJOR', 'MINOR']:
+                print(f'Block type for {program_code} ({block_type}) is not MAJOR or MINOR')
+              else:
+                print(program_code)
+              do_program(institution, program_code, show_courses)
             else:
               print(f'{row.block_type=} {row.block_value=} {row.type} {row.code=}')
 
