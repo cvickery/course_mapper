@@ -590,7 +590,6 @@ def process_block(block_info: dict,
 
     for subplan in plan_dict['subplans']:
       subplan_block_info = subplan['requirement_block']
-      subplan_key = (institution, subplan_block_info['requirement_id'])
       subplan_dict = {'subplan_block_info': subplan_block_info,
                       'subplan_name': subplan['subplan'],
                       'subplan_type': subplan['type'],
@@ -620,37 +619,57 @@ def process_block(block_info: dict,
     mogrified_context_strings = mogrify_context_list(context_list)
 
     # What is the enclosing context for this block?
-    enclosing_block_info = None
+    enclosing_block_info = []
     for mogrified_string in mogrified_context_strings[::-1]:
       if mogrified_string.startswith('RA'):
         encl_requirement_id, encl_type, encl_value, encl_title = mogrified_string.split(maxsplit=3)
-        enclosing_block_info = {'institution': institution,
-                                'requirement_id': encl_requirement_id,
-                                'block_type': encl_type,
-                                'block_value': encl_value,
-                                'block_title': encl_title,
-                                'catalog_years': 'Whatever'}  # To be seen only during testing
-        break
+        enclosing_block_info.append({'institution': institution,
+                                     'requirement_id': encl_requirement_id,
+                                     'block_type': encl_type,
+                                     'block_value': encl_value,
+                                     'block_title': encl_title,
+                                     'catalog_years': 'Whatever'})  # To be seen only during testing
 
     # Are there any true conditions for the plan’s concentrations?
+    subplan_names = [subplan['subplan_name'] for subplan
+                     in context_list[0]['block_info']['plan_info']['subplans']]
+
     concentration_names = []
     for context_str in mogrified_context_strings:
-      if match := re.search(r'TRUE.*CONC = (\S+)\s*\)', context_str):
-        concentration_names.append(match[1])
+      if matches := re.findall(r'TRUE.*CONC = (\S+)\s*\)', context_str):
+        for match in matches:
+          #   concentration_name = match[1]
+          # if not concentration_name.upper().startswith('MHC'):  # Ignore honors college concentrations
+          if match in subplan_names:
+            concentration_names.append(match)
 
     # Is this block one of the plan’s subplans?
     subplan_list = context_list[0]['block_info']['plan_info']['subplans']
-    found = False
     for subplan in subplan_list:
-      if (subplan['subplan_block_info']['requirement_id'] == requirement_id) and \
-         (subplan['subplan_name'] in concentration_names):
-        subplan['subplan_references'].append(mogrified_context_strings)
-        found = True
+      if (subplan['subplan_block_info']['requirement_id'] == requirement_id):
 
-    if not found:
-      # Not a subplan of the plan: add its enclosing context to the others list for the plan or for
-      # the matching subplan(s)
+        if len(concentration_names) > 1:
+          print(mogrified_context_strings)
+
+        if concentration_names and subplan['subplan_name'] not in concentration_names:
+          # This was supposed to be handled when the block or blocktype was referenced: report the
+          # calling cuplrit.
+          print(f'{institution} {requirement_id} {subplan["subplan_name"]} not in '
+                f'{concentration_names}. '
+                f'Called from {caller_frame.name} line {caller_frame.lineno} '
+                f'{context_list[0]["block_info"]["requirement_id"]}',
+                file=sys.stderr)
+          for context_str in mogrified_context_strings:
+            print(f'  {context_str}')
+          exit(subplan_names)
+        subplan['subplan_references'].append(mogrified_context_strings)
+        break
+    else:
+      # Not a subplan of the plan: add its enclosing context to the others list for the plan ...
       others_list = context_list[0]['block_info']['plan_info']['others']
+      # ... unless this block has a subplan’s block in its context
+
+      # Add to the correct others_list
       others_dict = {'other_block_info': enclosing_block_info,
                      'other_block_context': mogrified_context_strings
                      }

@@ -458,7 +458,7 @@ def mogrify_course_list(institution: str, requirement_id: str, course_dict: dict
 
       First flatten the dict of scribed courses to get rid of the areas structure.
         Log cases where there is more than one area
-      Create a set of courses (eliminates duplicates)
+      Create a set of courses (eliminate duplicates)
       Use courses_cache() to look up catalog_information for each course in the courses set.
       The courses_cache handles wildcard expansion.
 
@@ -518,6 +518,11 @@ def mogrify_course_list(institution: str, requirement_id: str, course_dict: dict
          Remark "Transferred students are allowed to fulfill the Creative Expression area with any
          approved Creative Expression from their prior school.";
 
+  About Residency and Grade Requirements
+  --------------------------------------
+    These restrictions can be specified in the header, in a containing requirement’s context, in
+    the immediate context of the course rule being processed, or in the course list itself.
+    Distributing such restrictions has not been done...yet.
   """
   # There has to be a course_dict to mogrify
   assert course_dict, 'Empty course_dict in mogrify_course_dict'
@@ -598,6 +603,109 @@ def mogrify_course_list(institution: str, requirement_id: str, course_dict: dict
   return return_list
 
 
+# plan_or_subplan()
+# -------------------------------------------------------------------------------------------------
+def plan_or_subplan(program_types: list, context_list: list) -> tuple:
+  """Determine the plan(s) or subplan(s) from a list of conditional expressions.
+
+  Evaluate a list of conditional expressions to determine what majors/minors/concentrations must be
+  true for the expression as a whole to be true.
+
+  Ignore, at least for now, conditions that must be false, because they seem to be a spurious
+  byproduct of how if-else expressions have been scribed at CUNY.
+
+  Thinking About:
+    Valid program types are MAJ, MIN, and CON. Return a list of true-matching (type, value) tuples.
+
+    If the rule is "block" or "copy_rules" then the block's requirement_id is known, so the question
+    is whether to attach its requirements to the plan or the subplan. Return a list of true-matching
+    plans and a list of true-matching subplans. Or maybe here is where we detect cases where there
+    is more than one match, and throw an exception. Here, the deal is not to tell which block, but
+    whether to include it at all.
+
+    if the rule is "blocktype" then it makes sense only to look for matching program_types, so that
+    type will be passed in the program_types list. This isn't working. This method will be called
+    only for blocktype, and the issue is to resolve complex, and possibly nested, if-else
+    conditions. ASTB.
+
+  """
+  for index, program_type in enumerate(program_types):
+    if program_type.lower().startswith('maj'):
+      program_types[index] = 'MAJ'
+    elif program_types.lower().startswith('min'):
+      program_types[index] = 'MIN'
+    elif program_types.lower().startswith('con'):
+      program_types[index] = 'CON'
+    else:
+      raise ValueError(f'{program_type} is not a valid program type')
+
+  full_expression = context_conditions(context_list)
+  print(f'{full_expression=}')
+
+  r"""Rough Grammar:
+        expression := plan_type rel_op unit_name | expression logical_op expression
+        # Use parens for grouping
+        plan_type := 'MAJ' | 'MIN' | 'CON'
+        logical_op := '&&' | '||'
+        unit_name := [A-Z\-]+
+
+        Ignore expressions where the unit_name starts with 'MHC' (Honors College)
+  """
+  _LP = '('
+  _RP = ')'
+  _AND = '&&'
+  _OR = '||'
+  _EQ = '=='
+  academic_plans = ['MAJ', 'MIN']
+  academic_subplan = 'CON'
+  academic_units = academic_plans.append(academic_subplan)
+  full_expression = full_expression.replace('(', ' ( ').replace(')', ' ) ')
+  tokens = [token.strip() for token in full_expression.split()]
+  assert tokens[0] == _LP and tokens[-1] == _RP, (f'which_plan: full expression not parenthesized '
+                                                  f'{full_expression} {tokens}')
+  tuple_list = []
+
+  # Finite State Automaton
+  state = 'start'
+  nesting_level = 0
+  for token in tokens[1:-1]:
+    print(f'{state} {token}')
+
+    match state:
+
+      case 'start':
+        match token:
+          case '(':
+            nesting_level += 1
+          case ')' | '&&' | '||':
+            raise ValueError(f'{token} not allowed in start')
+          case 'MAJ' | 'MIN' | 'CON':
+            academic_unit = token
+            state = 'have_unit'
+
+      case 'have_unit':
+        match token:
+          case '==':
+            lop = token
+            state = 'have_lop'
+          case _:
+            raise ValueError(f'{token} not allowed in have_unit')
+
+      case 'have_lop':
+        match token:
+          case '&&' | '||':
+            print(f'TODO: token in have_lop')
+          case 'MAJ', 'MIN', 'CON':
+            raise ValueError(f'{token} not allowed in have_lop')
+          case _:
+            tuple_list.append((academic_unit, token))
+            state = 'start'
+      case _:
+        exit(f'Bad expression: {full_expression} {current_state} {nesting_level} {tuple_list}')
+
+  return tuple_list
+
+
 # context_conditions()
 # -------------------------------------------------------------------------------------------------
 def context_conditions(context_list: list) -> str:
@@ -622,30 +730,27 @@ def context_conditions(context_list: list) -> str:
             debug_list.append({value: conditional_list[-1]})
         case _:
           pass
-  if conditional_list:
-    conditions_str = ' && '.join(conditional_list)
-  else:
-   conditions_str = ''
-
-  return conditions_str
+  print(f'{debug_list=}')
+  return ' && '.join(conditional_list)
 
 
 # mogrify_expression()
 # -------------------------------------------------------------------------------------------------
 def mogrify_expression(expression: str, de_morgan: bool = False) -> str:
-  """If the expression specifies a set of major or concentration conditions, return an
-      English sentence describing those conditions. Otherwise, return the empty string.
+  """Normalize logical expressions that involve majors and/or concentrations.
 
-      The three logical operators (and, or, not) and parens have to be handled.
-      The only relational operators that will occur are = and <>
+  If the expression specifies a set of major or concentration conditions, return an English sentence
+  describing those conditions. Otherwise, return the empty string.
 
-      If de_morgan, invert the logic by de Morgan's theorem. (Used in an 'else' context)
+  The three logical operators (and, or, not) and parens have to be handled.
+  The only relational operators that will occur are = and <>
+
+  If de_morgan, invert the logic by de Morgan's theorem. (Used in an 'else' context)
   """
-
   sentence = ''
 
   # Is there anything to do?
-  if re.search('major |conc ', expression, flags=re.I):
+  if re.search('major |conc |minor', expression, flags=re.I):
     # Replace logical and relational operators with 1-character symbols.
     # relop = is already one char; <> is awkward: I chose to use ^
     working_expression = expression.strip()
@@ -654,7 +759,8 @@ def mogrify_expression(expression: str, de_morgan: bool = False) -> str:
     working_expression = re.sub(' NOT ', ' ! ', working_expression, flags=re.I)
     working_expression = re.sub(' <> ', ' ^ ', working_expression, flags=re.I)
 
-    tokens = working_expression.split()
+    working_expression = working_expression.replace('(', ' ( ').replace (')', ' ) ')
+    tokens = [token.upper() for token in working_expression.split()]
     for token in tokens:
       match token:
         case 'MAJOR':
@@ -684,5 +790,19 @@ def mogrify_expression(expression: str, de_morgan: bool = False) -> str:
 
 
 if __name__ == '__main__':
-  while expression := input('expression? '):
-    mogrify_expression(expression)
+  expressions = []
+  while condition := input('condition? '):
+    try:
+      key, value = condition.split(maxsplit=1)
+      if key.lower() in ['if', 'else']:
+        expressions.append({key: value})
+      else:
+        raise ValueError
+    except ValueError:
+      print('Start with if/else')
+  tuples_list = which_plan(expressions)
+  print()
+  for tuple_item in tuples_list:
+    print(f'{tuple_item=}')
+  else:
+    print('no tuples')
