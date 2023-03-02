@@ -5,8 +5,8 @@
 read -p 'This will overwrite spell_check/ files OK? (yN) '
 if [[ ${REPLY[0]} =~ ^[Yy] ]]
 then
-  reports_dir='/Users/vickery/Projects/course_mapper/reports'
-  spellcheck_dir='/Users/vickery/Projects/course_mapper/spell_check'
+  reports_dir='./reports'
+  spellcheck_dir='./spell_check'
   rm -f $spellcheck_dir/*
   sort $reports_dir/labels.txt|uniq > $spellcheck_dir/labels
   (

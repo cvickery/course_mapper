@@ -1,6 +1,8 @@
 #! /usr/local/bin/python3
-""" Load the three course mapping tables into the course_mapper database. Then you can use
-    get_course_mapping_info.py to see what requirements a course satisfies, for example.
+"""Load the three course mapping tables into the course_mapper database.
+
+Then you can use get_course_mapping_info.py to see what requirements a course satisfies, for
+example.
 """
 
 import argparse
@@ -89,7 +91,8 @@ if __name__ == '__main__':
         """, (str(date.today()),))
 
       tables = dict()
-      csv_files = Path('/Users/vickery/Projects/course_mapper/reports').glob('c*v')
+      home_dir = Path.home()
+      csv_files = Path(home_dir, 'Projects/course_mapper/reports').glob('c*v')
       for file in csv_files:
 
         with open(file, 'rb') as fp:

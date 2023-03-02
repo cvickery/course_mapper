@@ -22,15 +22,21 @@ import sys
 from argparse import ArgumentParser
 from collections import namedtuple, defaultdict
 from getch import getch, getche
+from pathlib import Path
 from psycopg.rows import namedtuple_row
 from quarantine_manager import QuarantineManager
 
 quarantined_dict = QuarantineManager()
 
-error_file = open('/Users/vickery/Projects/course_mapper/reports/activeplans_err.txt', 'w')
-inactive_file = open('/Users/vickery/Projects/course_mapper/reports/inactive.txt', 'w')
-log_file = open('/Users/vickery/Projects/course_mapper/reports/activeplans_log.txt', 'w')
-missing_file = open('/Users/vickery/Projects/course_mapper/reports/activeplans_missing.txt', 'w')
+home_dir = Path.home()
+error_file = Path(home_dir,
+                  'Projects/course_mapper/reports/activeplans_err.txt').open(mode='w')
+inactive_file = Path(home_dir,
+                     'Projects/course_mapper/reports/inactive.txt').open(mode='w')
+log_file = Path(home_dir,
+                'Projects/course_mapper/reports/activeplans_log.txt').open(mode='w')
+missing_file = Path(home_dir,
+                    'Projects/course_mapper/reports/activeplans_missing.txt').open(mode='w')
 
 
 # RHS for plan and subplan dicts

@@ -19,7 +19,7 @@ do
   shift
 done
 (
-  cd /Users/vickery/Projects/course_mapper/reports
+  cd ~/Projects/course_mapper/reports
   echo -e `date` '\n\nBLOCK COUNTS' > reports.txt
 
   cat blocks.txt|cut -c 1-3,15-|sort|uniq -c >> reports.txt
