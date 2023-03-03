@@ -730,7 +730,6 @@ def context_conditions(context_list: list) -> str:
             debug_list.append({value: conditional_list[-1]})
         case _:
           pass
-  print(f'{debug_list=}')
   return ' && '.join(conditional_list)
 
 

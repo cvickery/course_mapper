@@ -62,14 +62,14 @@ if __name__ == '__main__':
       cursor.execute(f"""
       create table {schema_name}.requirements (
         institution           text,
-        requirement_id        text,
-        other_requirement_ids text,
-        conditions            text,
-        requirement_key       integer,
+        plan_name             text,
+        plan_type             text,
+        subplan_name          text,
+        requirement_ids       text,
+        requirement_key       integer primary key,
         program_name          text,
         context               jsonb,
-        generate_date         date,
-        primary key (institution, requirement_id, requirement_key)
+        generate_date         date
       )""")
 
       cursor.execute(f"""
