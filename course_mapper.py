@@ -1785,20 +1785,4 @@ if __name__ == "__main__":
   for k, v in block_types.items():
     print(f'{v:5,} {k.title()}')
 
-  with open('/Users/vickery/Projects/dgw_processor/block_counts.txt', 'w') as counts_file:
-    print('Block           Count', file=counts_file)
-    for key, value in reference_counts.items():
-      i, r = key
-      print(f'{i} {r} {value:2}', file=counts_file)
-
-  with open('/Users/vickery/Projects/dgw_processor/caller_lists.txt', 'w') as caller_file:
-    print('Block          List', file=caller_file)
-    for key, values in reference_callers.items():
-      institution, requirement_id = key
-      counts = defaultdict(int)
-      for value in values:
-        counts[value.lineno] += 1
-      counts_str = '; '.join([f'{value.lineno}={counts[value.lineno]}'])
-      print(institution, requirement_id, counts_str, file=caller_file)
-
   print(f'\n{(datetime.datetime.now() - start_time).seconds} seconds')
