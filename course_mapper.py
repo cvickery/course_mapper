@@ -606,7 +606,7 @@ def process_block(block_info: dict,
                       'subplan_cip_code': subplan['cip_code'],
                       'subplan_active_terms': subplan_block_info['num_recent_active_terms'],
                       'subplan_enrollment': subplan_block_info['recent_enrollment'],
-                      'subplan_references': [],
+                      'subplan_reference_count': 0,
                       'subplan_others': []
                       }
       plan_info_dict['subplans'].append(subplan_dict)
@@ -619,69 +619,73 @@ def process_block(block_info: dict,
 
   else:
     # For non-plan blocks, look up the subplan in the plan dict, if possible
-
-    # This could be a subplan block that wasn’t referenced from the plan block, in which case update
-    # update the plan block’s subplans list
-
-    # Get all context strings
-    mogrified_context_strings = mogrify_context_list(context_list)
-
-    # What is the enclosing context for this block?
-    enclosing_block_info = []
-    for mogrified_string in mogrified_context_strings[::-1]:
-      if mogrified_string.startswith('RA'):
-        encl_requirement_id, encl_type, encl_value, encl_title = mogrified_string.split(maxsplit=3)
-        enclosing_block_info.append({'institution': institution,
-                                     'requirement_id': encl_requirement_id,
-                                     'block_type': encl_type,
-                                     'block_value': encl_value,
-                                     'block_title': encl_title,
-                                     'catalog_years': 'Whatever'})  # To be seen only during testing
-
-    # Are there any true conditions for the plan’s concentrations?
-    subplan_names = [subplan['subplan_name'] for subplan
-                     in context_list[0]['block_info']['plan_info']['subplans']]
-
-    concentration_names = []
-    for context_str in mogrified_context_strings:
-      if matches := re.findall(r'TRUE.*CONC = (\S+)\s*\)', context_str):
-        for match in matches:
-          #   concentration_name = match[1]
-          # if not concentration_name.upper().startswith('MHC'):  # Ignore honors college concentrations
-          if match in subplan_names:
-            concentration_names.append(match)
-
-    # Is this block one of the plan’s subplans?
     subplan_list = context_list[0]['block_info']['plan_info']['subplans']
     for subplan in subplan_list:
       if (subplan['subplan_block_info']['requirement_id'] == requirement_id):
+        subplan['subplan_reference_count'] += 1
 
-        if len(concentration_names) > 1:
-          print(mogrified_context_strings)
+  #   # This could be a subplan block that wasn’t referenced from the plan block, in which case update
+  #   # update the plan block’s subplans list
 
-        if concentration_names and subplan['subplan_name'] not in concentration_names:
-          # This was supposed to be handled when the block or blocktype was referenced: report the
-          # calling cuplrit.
-          print(f'{institution} {requirement_id} {subplan["subplan_name"]} not in '
-                f'{concentration_names}. '
-                f'Called from {caller_frame.name} line {caller_frame.lineno} '
-                f'{context_list[0]["block_info"]["requirement_id"]}',
-                file=sys.stderr)
-          for context_str in mogrified_context_strings:
-            print(f'  {context_str}')
-          exit(subplan_names)
-        subplan['subplan_references'].append(mogrified_context_strings)
-        break
-    else:
-      # Not a subplan of the plan: add its enclosing context to the others list for the plan ...
-      others_list = context_list[0]['block_info']['plan_info']['others']
-      # ... unless this block has a subplan’s block in its context
+  #   # Get all context strings
+  #   mogrified_context_strings = mogrify_context_list(context_list)
 
-      # Add to the correct others_list
-      others_dict = {'other_block_info': enclosing_block_info,
-                     'other_block_context': mogrified_context_strings
-                     }
-      others_list.append(others_dict)
+  #   # What is the enclosing context for this block?
+  #   enclosing_block_info = []
+  #   for mogrified_string in mogrified_context_strings[::-1]:
+  #     if mogrified_string.startswith('RA'):
+  #       encl_requirement_id, encl_type, encl_value, encl_title = mogrified_string.split(maxsplit=3)
+  #       enclosing_block_info.append({'institution': institution,
+  #                                    'requirement_id': encl_requirement_id,
+  #                                    'block_type': encl_type,
+  #                                    'block_value': encl_value,
+  #                                    'block_title': encl_title,
+  #                                    'catalog_years': 'Whatever'})  # To be seen only during testing
+
+  #   # Are there any true conditions for the plan’s concentrations?
+  #   subplan_names = [subplan['subplan_name'] for subplan
+  #                    in context_list[0]['block_info']['plan_info']['subplans']]
+
+  #   concentration_names = []
+  #   for context_str in mogrified_context_strings:
+  #     if matches := re.findall(r'TRUE.*CONC = (\S+)\s*\)', context_str):
+  #       for match in matches:
+  #         #   concentration_name = match[1]
+  #         # if not concentration_name.upper().startswith('MHC'):  # Ignore honors college concentrations
+  #         if match in subplan_names:
+  #           concentration_names.append(match)
+
+  #   # Is this block one of the plan’s subplans?
+  #   subplan_list = context_list[0]['block_info']['plan_info']['subplans']
+  #   for subplan in subplan_list:
+  #     if (subplan['subplan_block_info']['requirement_id'] == requirement_id):
+
+  #       if len(concentration_names) > 1:
+  #         print(mogrified_context_strings)
+
+  #       if concentration_names and subplan['subplan_name'] not in concentration_names:
+  #         # This was supposed to be handled when the block or blocktype was referenced: report the
+  #         # calling cuplrit.
+  #         print(f'{institution} {requirement_id} {subplan["subplan_name"]} not in '
+  #               f'{concentration_names}. '
+  #               f'Called from {caller_frame.name} line {caller_frame.lineno} '
+  #               f'{context_list[0]["block_info"]["requirement_id"]}',
+  #               file=sys.stderr)
+  #         for context_str in mogrified_context_strings:
+  #           print(f'  {context_str}')
+  #         exit(subplan_names)
+  #       subplan['subplan_references'].append(mogrified_context_strings)
+  #       break
+  #   else:
+  #     # Not a subplan of the plan: add its enclosing context to the others list for the plan ...
+  #     others_list = context_list[0]['block_info']['plan_info']['others']
+  #     # ... unless this block has a subplan’s block in its context
+
+  #     # Add to the correct others_list
+  #     others_dict = {'other_block_info': enclosing_block_info,
+  #                    'other_block_context': mogrified_context_strings
+  #                    }
+  #     others_list.append(others_dict)
 
   # Traverse the body of the block. If this is a plan block, the subplan and others lists will be
   # updated by any block, blocktype, and copy_rules items encountered during the recursive traversal
@@ -729,16 +733,15 @@ def process_block(block_info: dict,
       # Log cases where there are either zero or more than one reference to the subplan
       unreferenced_subplans = []
       for subplan in block_info_dict['plan_info']['subplans']:
-        num_references = len(subplan['subplan_references'])
         subplan_name = subplan['subplan_name']
         subplan_enrollment = subplan['subplan_enrollment']
-        if num_references == 0:
+        if (num_references := subplan['subplan_reference_count']) == 0:
           # Log un-referenced subplan blocks
           unreferenced_subplans.append(subplan['subplan_block_info'])
           print(f'{institution} {requirement_id} Subplan {subplan_name} not referenced; '
                 f'{subplan_enrollment:,} enrolled',
                 file=subplans_file)
-        if num_references > 1:
+        elif num_references > 1:
           print(f'{institution} {requirement_id} Subplan {subplan_name} referenced '
                 f'{num_references} times; {subplan_enrollment:,} enrolled', file=subplans_file)
 

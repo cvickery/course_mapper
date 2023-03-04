@@ -1,7 +1,8 @@
 #! /usr/local/bin/python3
-""" This is an interactive utility for displaying the requirements for a program (major or minor).
-    If the program has any active subplans (concentrations), it prompts for the one of interest
-    (unless there is only one).
+"""This is an interactive utility for displaying the requirements for a program (major or minor).
+
+If the program has any active subplans (concentrations), it prompts for the one of interest (unless
+there is only one).
 
     To use this, you have to know (or guess) the plan codes for the institution. You can use the
     requirement_id instead if that suits your fancy.
@@ -15,11 +16,11 @@
       show_courses  toggle
 """
 
-
 import psycopg
 import sys
 
 from markdown import markdown
+from pathlib import Path
 from psycopg.rows import namedtuple_row
 
 institutions = dict()
