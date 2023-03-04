@@ -141,8 +141,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 
 
 def active_plans():
-  """ Get Plans of interest and their associated subplans
-  """
+  """Get Plans of interest and their associated subplans."""
   with psycopg.connect('dbname=cuny_curriculum') as conn:
     with conn.cursor(row_factory=namedtuple_row) as cursor:
       cursor.execute(r"""
