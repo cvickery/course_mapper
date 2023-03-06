@@ -28,9 +28,9 @@ no_courses_file = Path(home_dir, 'Projects/course_mapper/reports/no_courses.txt'
 subplans_file = Path(home_dir, 'Projects/course_mapper/reports/subplans.txt').open(mode='w')
 todo_file = Path(home_dir, 'Projects/course_mapper/reports/todo.txt').open(mode='w')
 
-programs_file = Path(home_dir, 'Projects/course_mapper/reports/course_mapper.programs.csv')\
+programs_file = Path(home_dir, 'Projects/course_mapper/reports/dgw_programs.csv')\
     .open(mode='w', newline='')
-requirements_file = Path(home_dir, 'Projects/course_mapper/reports/course_mapper.requirements.csv')\
+requirements_file = Path(home_dir, 'Projects/course_mapper/reports/dgw_requirements.csv')\
     .open(mode='w', newline='')
-mapping_file = Path(home_dir, 'Projects/course_mapper/reports/course_mapper.course_mappings.csv')\
+mapping_file = Path(home_dir, 'Projects/course_mapper/reports/dgw_courses.csv')\
     .open(mode='w', newline='')
