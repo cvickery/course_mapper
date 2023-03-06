@@ -383,14 +383,18 @@ def map_courses(institution: str, requirement_ids: str, block_title: str, contex
   # if conditions_str:
   #   print(institution, requirement_id, conditions_str, file=conditions_file)
 
-  # Plan/subplan info
+  # Plan/subplan/conditional info
+  """ If YOU ARE HERE
+  """
   plan_info = context_list[0]['block_info']['plan_info']
   plan_name = plan_info['plan_name']
   plan_type = plan_info['plan_type']
+  conditions =''
   # Determine which subplan, if any, this is a requirement for by searching the context list for a
   # requirement_id that matches one of this plan’s subplan’s requirement_ids.
 
   # First, are there any enclosing contexts that might be for a subplan?
+  plan_block, *other_blocks = requirement_ids.split(':', maxsplit=1)
   enclosing_requirement_ids = []
   for context_item in context_list[1:]:
     try:
@@ -404,9 +408,13 @@ def map_courses(institution: str, requirement_ids: str, block_title: str, contex
         subplan_name = subplan['subplan_name']
         break
     else:
-      # THERE MIGHT BE SOMETHING INTERESTING TO LOG HERE
+      # There are enclosing contexts, and plan has subplans, but no subplan matches any of the
+      # enclosing blocks, so this has to be a requirement for the plan.
+      print(f'{institution} {plan_block} Block(s) {other_blocks} not subplan of the plan.',
+            file=subplans_file)
       subplan_name = ''
   else:
+    # There is no enclosing context, so this has to be a requirement for the plan.
     subplan_name = ''
 
   # Copy the requirement_dict in case a local version has to be constructed
@@ -470,7 +478,7 @@ def map_courses(institution: str, requirement_ids: str, block_title: str, contex
     requirement_info['label'] = requirement_name
 
     requirement_row = [institution, plan_name, plan_type, subplan_name, requirement_ids,
-                       requirement_key, block_title,
+                       conditions, requirement_key, block_title,
                        json.dumps(context_list + [{'requirement': requirement_info}],
                                   ensure_ascii=False),
                        generated_date]
@@ -1754,6 +1762,7 @@ if __name__ == "__main__":
                                 'Plan Type',
                                 'Subplan Name',
                                 'Requirement IDs',
+                                'Conditions',
                                 'Requirement Key',
                                 'Program Name',
                                 'Context',
