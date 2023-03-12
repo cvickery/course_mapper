@@ -1,6 +1,5 @@
 #! /usr/local/bin/python3
-""" Utilities used by the course_mapper.
-"""
+"""Utilities used by the course_mapper."""
 
 import psycopg
 import re
@@ -26,8 +25,7 @@ MogrifiedInfo = namedtuple('MogrifiedInfo', 'course_id_str course_str credits ca
 # called_from()
 # -------------------------------------------------------------------------------------------------
 def called_from(depth=3, out_file=sys.stdout):
-  """ Tell where the caller was called from (development aid)
-  """
+  """Tell where the caller was called from (development aid)."""
   if depth < 0:
     depth = 999
 
@@ -48,8 +46,7 @@ def called_from(depth=3, out_file=sys.stdout):
 # format_group_description()
 # -------------------------------------------------------------------------------------------------
 def format_group_description(num_groups: int, num_required: int):
-  """ Return an English string to replace the label (requirement_name) for group requirements.
-  """
+  """Return an English string to replace the label (requirement_name) for group requirements."""
   assert isinstance(num_groups, int) and isinstance(num_required, int), 'Precondition failed'
 
   suffix = '' if num_required == 1 else 's'
@@ -82,8 +79,9 @@ def format_group_description(num_groups: int, num_required: int):
 # get_parse_tree()
 # -------------------------------------------------------------------------------------------------
 def get_parse_tree(dap_req_block_key: tuple) -> dict:
-  """ Look up the parse tree for a dap_req_block.
-      Cache it, and return it.
+  """Look up the parse tree for a dap_req_block.
+
+  Cache it, and return it.
   """
   if dap_req_block_key not in _parse_trees_cache.keys():
     with psycopg.connect('dbname=cuny_curriculum') as conn:
@@ -108,8 +106,7 @@ def get_parse_tree(dap_req_block_key: tuple) -> dict:
 # get_restrictions()
 # -------------------------------------------------------------------------------------------------
 def get_restrictions(node: dict) -> dict:
-  """ Return qualifiers that might affect transferability.
-  """
+  """Return qualifiers that might affect transferability."""
   assert isinstance(node, dict)
 
   return_dict = dict()
@@ -139,21 +136,22 @@ def get_restrictions(node: dict) -> dict:
 # letter_grade()
 # -------------------------------------------------------------------------------------------------
 def letter_grade(grade_point: float) -> str:
-  """ Convert a passing grade_point value to a passing letter grade.
-      Treat anything less than 1.0 as "Any" passing grade, and anything above 4.3 as "A+"
-        GPA Letter
-        4.3    A+
-        4.0    A
-        3.7    A-
-        3.3    B+
-        3.0    B
-        2.7    B-
-        2.3    C+
-        2.0    C
-        1.7    C-
-        1.3    D+
-        1.0    D
-        0.7    D- => "Any"
+  """Convert a passing grade_point value to a passing letter grade.
+
+  Treat anything less than 1.0 as "Any" passing grade, and anything above 4.3 as "A+"
+    GPA Letter
+    4.3    A+
+    4.0    A
+    3.7    A-
+    3.3    B+
+    3.0    B
+    2.7    B-
+    2.3    C+
+    2.0    C
+    1.7    C-
+    1.3    D+
+    1.0    D
+    0.7    D- => "Any"
   """
   if grade_point < 1.0:
     return 'Any'
@@ -171,10 +169,11 @@ def letter_grade(grade_point: float) -> str:
 # -------------------------------------------------------------------------------------------------
 def header_classcredit(institution: str, requirement_id: str,
                        value: dict, do_proxyadvice: bool) -> dict:
-  """
-      This is the “total credits and/or total classes” part of the header, which we are calling
-      “requirement size”. Conditionals my cause multiple instances to be specified, which is why
-      this value is maintained as a list, which may also contain interspersed conditionals.
+  """Process class-credit requirements in header sections.
+
+  This is the “total credits and/or total classes” part of the header, which we are calling
+  “requirement size”. Conditionals my cause multiple instances to be specified, which is why
+  this value is maintained as a list, which may also contain interspersed conditionals.
   """
   return_dict = dict()
 
@@ -229,8 +228,7 @@ def header_classcredit(institution: str, requirement_id: str,
 # header_maxtransfer()
 # -------------------------------------------------------------------------------------------------
 def header_maxtransfer(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Process max-transfer restrictions in header sections."""
   mt_dict = {'label': value['label']}
 
   number = float(value['maxtransfer']['number'])
@@ -251,8 +249,10 @@ def header_maxtransfer(institution: str, requirement_id: str, value: dict) -> di
 # header_minres()
 # -------------------------------------------------------------------------------------------------
 def header_minres(institution: str, requirement_id: str, value: dict) -> dict:
-  """ Return a dict with the number of classes or credits (it's always credits, in practice) plus
-      the label if there is one.
+  """Process min-res restrictions in header sections.
+
+  Returns a dict with the number of classes or credits (it's always credits, in practice) plus
+  the label if there is one.
   """
   min_classes = value['minres']['min_classes']
   min_credits = value['minres']['min_credits']
@@ -273,8 +273,7 @@ def header_minres(institution: str, requirement_id: str, value: dict) -> dict:
 # header_mingpa()
 # -------------------------------------------------------------------------------------------------
 def header_mingpa(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Process min-gpa restrictions in header sections."""
   mingpa_dict = value['mingpa']
   mingpa_dict['label'] = value['label']
 
@@ -284,8 +283,7 @@ def header_mingpa(institution: str, requirement_id: str, value: dict) -> dict:
 # header_mingrade()
 # -------------------------------------------------------------------------------------------------
 def header_mingrade(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Process min-grade restrictions in header sections."""
   mingrade_dict = value['mingrade']
   mingrade_dict['letter_grade'] = letter_grade(float(value['mingrade']['number']))
   mingrade_dict['label'] = value['label']
@@ -296,12 +294,10 @@ def header_mingrade(institution: str, requirement_id: str, value: dict) -> dict:
 # header_maxclass()
 # -------------------------------------------------------------------------------------------------
 def header_maxclass(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
-
+  """Process max-class restrictions in header sections."""
   try:
     for cruft_key in ['institution', 'requirement_id']:
-      del(value['maxclass']['course_list'][cruft_key])
+      del (value['maxclass']['course_list'][cruft_key])
   except KeyError:
     # The same block might have been mapped in a different context already
     pass
@@ -325,11 +321,10 @@ def header_maxclass(institution: str, requirement_id: str, value: dict) -> dict:
 # header_maxcredit()
 # -------------------------------------------------------------------------------------------------
 def header_maxcredit(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Process max-credit restrictions in header sections."""
   try:
     for cruft_key in ['institution', 'requirement_id']:
-      del(value['maxcredit']['course_list'][cruft_key])
+      del (value['maxcredit']['course_list'][cruft_key])
   except KeyError:
     pass
 
@@ -353,8 +348,7 @@ def header_maxcredit(institution: str, requirement_id: str, value: dict) -> dict
 # header_maxpassfail()
 # -------------------------------------------------------------------------------------------------
 def header_maxpassfail(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Process max pass-fail restrictions in header sections."""
   maxpassfail_dict = value['maxpassfail']
   maxpassfail_dict['label'] = value['label']
 
@@ -364,8 +358,7 @@ def header_maxpassfail(institution: str, requirement_id: str, value: dict) -> di
 # header_maxperdisc()
 # -------------------------------------------------------------------------------------------------
 def header_maxperdisc(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Process max per-discipline restrictions in header sections."""
   maxperdisc_dict = value['maxperdisc']
   maxperdisc_dict['label'] = value['label']
 
@@ -375,8 +368,7 @@ def header_maxperdisc(institution: str, requirement_id: str, value: dict) -> dic
 # header_minclass()
 # -------------------------------------------------------------------------------------------------
 def header_minclass(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Process min classes restrictions in header sections."""
   minclass_dict = value['minclass']
   minclass_dict['label'] = value['label']
 
@@ -386,8 +378,7 @@ def header_minclass(institution: str, requirement_id: str, value: dict) -> dict:
 # header_mincredit()
 # -------------------------------------------------------------------------------------------------
 def header_mincredit(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Process min credits restrictions in header sections."""
   mincredit_dict = value['mincredit']
   mincredit_dict['label'] = value['label']
 
@@ -397,8 +388,7 @@ def header_mincredit(institution: str, requirement_id: str, value: dict) -> dict
 # header_minperdisc()
 # -------------------------------------------------------------------------------------------------
 def header_minperdisc(institution: str, requirement_id: str, value: dict) -> dict:
-  """
-  """
+  """Process min per-discipline restrictions in header sections."""
   minperdisc_dict = value['minperdisc']
   minperdisc_dict['label'] = value['label']
 
@@ -779,7 +769,7 @@ def mogrify_expression(expression: str, de_morgan: bool = False) -> str:
         case '=':
           sentence += ' != ' if de_morgan else ' == '
         case '^':
-          sentence += ' == ' if de_morgan else' != '
+          sentence += ' == ' if de_morgan else ' != '
         case '(' | ')':
           sentence += token
         case _:
