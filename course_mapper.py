@@ -1129,11 +1129,12 @@ def traverse_body(node: Any, context_list: list) -> None:
                   file=fail_file)
             preconditions = False
 
-          # Required blocktype is not CONC
+          # Check required blocktype is CONC
           required_blocktype = requirement_value['block_type']
           if required_blocktype != 'CONC':
+            # There are three "dual-major" majors at Brooklyn.
             print(f'{institution} {requirement_id} Body blocktype: required blocktype is '
-                  f'{required_blocktype} (ignored)', file=fail_file)
+                  f'{required_blocktype} (ignored)', file=todo_file)
             preconditions = False
 
           if preconditions:
@@ -1148,6 +1149,7 @@ def traverse_body(node: Any, context_list: list) -> None:
             # Log cases where multiple blocks are required
             num_required = int(requirement_value['number'])
             if num_required > 1:
+              # Not observed to occur
               print(f'{institution} {requirement_id} Body blocktype: {num_required} subplans '
                     f'required', file=log_file)
 
